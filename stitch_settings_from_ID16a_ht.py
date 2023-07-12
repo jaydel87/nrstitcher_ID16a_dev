@@ -523,9 +523,9 @@ def main():
 		Z += dZ
 
 		# Positions in units of pixels with correction in case tiles do not have the same number of pixels
-		Z = round(Z / vox_size + (Zdim_ref-Zdim)/2)
-		Y = round(Y / vox_size + (Ydim_ref-Ydim)/2)
-		X = round(X / vox_size + (Xdim_ref-Xdim)/2)
+		Z = round(Z / vox_size + (Zdim_ref-Zdim)/2.)
+		Y = round(Y / vox_size + (Ydim_ref-Ydim)/2.)
+		X = round(X / vox_size + (Xdim_ref-Xdim)/2.)
 		
 		print(X, Y, Z)
 	
