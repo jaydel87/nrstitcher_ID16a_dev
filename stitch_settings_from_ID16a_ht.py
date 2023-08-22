@@ -15,34 +15,22 @@ from pi2py2 import *
 from default_stitch_settings import *
 
 argparser = argparse.ArgumentParser(description='Creates input file for nr_stitcher.py program from id16a holotomography scan settings.')
-argparser.add_argument('--base_dir', type=str, help='Base directory containing sub-directories for individual scans and reconstructed volumes.')
-argparser.add_argument('--vol_dir', type=str, default="volfloat/", help='Sub-directory containing reconstructed volumes.')
+argparser.add_argument('--base_dir', type=str, help='Required. Base directory containing sub-directories for individual scans and reconstructed volumes.')
+argparser.add_argument('--vol_dir', type=str, default="volfloat/", help='Required. Sub-directory containing reconstructed volumes.')
 argparser.add_argument('--volumes', nargs='*', type=str, action='store', default='*.raw', help='Required. Names (separated by a space) of reconstructed volumes to be stitched, or, if there are many volumes a single input with regular expressions can be used e.g., sample_*.raw.')
+argparser.add_argument('--distances', nargs='*', type=int, action='store', default=None, help='Optional. Integers (separated by a space) corresponding to distances used in holotomographic acquisition. Default is [1 2 3 4].')
 argparser.add_argument('--bitdepth', default=None, type=str, help='Optional. Bit depth of output .raw volumes if conversion is required. Default is none, no conversion will be performed. Options are "pyhst" (32-bit float), "8bits", "16bits" and "32bits" (int).')
 argparser.add_argument('--voxelsize', default=None, type=str, help='Optional. Give desired voxel size (in nm) if volumes are to be rescaled (same value applies to all volumes).')
 argparser.add_argument('--vrange', default=None, nargs=2, type=int, help='Optional. Minimum and maximum greyscale values. If not given they will be automatically calculated. Values are applied to all volumes')
-argparser.add_argument('-b', '--binning', default=1, type=int, help='Binning that is to be applied before stitching. Recommended for optimising the stitch settings.')
+argparser.add_argument('-b', '--binning', default=1, type=int, help='Optional. Binning that is to be applied before stitching. Recommended for optimising the stitch settings. Default is 1 (no binning).')
 argparser.add_argument('-n', '--name', default='stitched', type=str, help='Sample name. Default is "stitched".')
-argparser.add_argument('--output', default=None, type=str, help='Name of stitch_settings file. Default is "stitch_settings.txt". Will be saved in the current working directory.')
+argparser.add_argument('-o', '--output', default='stitch_settings.txt', type=str, help='Optional. Name of stitch_settings file. Default is "stitch_settings.txt". Will be saved in the current working directory.')
 
 args = argparser.parse_args()
+if args.distances == None:
+	args.distances = [1, 2, 3, 4]
+args.distances.sort()
 
-def get_h5(volume_name):
-	subdirs = os.listdir(args.base_dir)
-
-	mask = [x.endswith("_1_") for x in subdirs]
-	prefix_list = [x.replace('_1_', '') for x in list(compress(subdirs, mask))]
-	
-	for prefix in prefix_list:
-		if prefix in volume_name:
-			h5_dir = args.base_dir + prefix + '_1_/'
-			print(volume_name, h5_dir)
-			
-	h5_filename = glob.glob(h5_dir + "*.h5")[0]
-	print(h5_filename)
-	
-	return h5_filename
-	
 	
 def get_h5file(volume_name):
 	h5path = args.base_dir + "../"
@@ -253,11 +241,14 @@ class h5:
 		self.file = h5py.File(self.filename, "r")
 		self.keys = list(self.file.keys())
 		
-		mask = [x.endswith("_1_") for x in self.keys]
+		first_dist = args.distances[0]
+		scan_suffix = f"_{first_dist}_"
+		
+		mask = [x.endswith(scan_suffix) for x in self.keys]
 		entry_list = list(compress(self.keys, mask))
 	
 		for entry in entry_list:
-			prefix = entry.split(' ')[-1].replace('_1_', '')
+			prefix = entry.split(' ')[-1].replace(scan_suffix, '')
 			if prefix in volume_name:
 				self.root = self.file[entry]
 				print(volume_name)
@@ -535,8 +526,8 @@ def main():
 	
 	# Write the stitch settings file and copy slurm_config file to local directory
 	write_stitch_settings(args.name, args.binning, line_to_write, point_spacing=100, coarse_block_radius=50, coarse_binning=2, cluster_name='SLURM')
-	if args.output != None:
-		os.rename('./stitch_settings.txt', './' + args.output)
+	#if args.output != None:
+	os.rename('./stitch_settings.txt', './' + args.output)
 	if not os.path.isfile('./slurm_config.txt'):
 		shutil.copyfile('/data/id16a/inhouse1/sware/NRstitcher/pi2-0523/pi2/bin-linux64/release-nocl/slurm_config_id16a.txt', './slurm_config.txt')
 	
