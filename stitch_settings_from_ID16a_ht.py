@@ -24,7 +24,7 @@ from pi2py2 import *
 from default_stitch_settings import *
 
 __author__ = "Jayde Livingstone"
-__credits__ = ["Jayde Livingstone", "Arttu Miettenen"]
+__credits__ = ["Jayde Livingstone", "Arttu Miettenen", "Yervand Azatian"]
 __maintainer__ = "Jayde Livingstone"
 __email__ = "jayde.livingstone@gmail.com"
 
@@ -362,12 +362,24 @@ class h5:
 		
 		mask = [x.endswith(scan_suffix) for x in self.keys]
 		entry_list = list(compress(self.keys, mask))
-	
+		
+		found = False
+
 		for entry in entry_list:
 			prefix = entry.split(' ')[-1].replace(scan_suffix, '')
 			if prefix in volume_name:
 				self.root = self.file[entry]
 				print(volume_name)
+				found = True
+
+		if found == False:
+			for entry in entry_list:
+				tmp = entry.split(' ')[-1]
+				prefix = ''.join(tmp.rsplit(scan_suffix, 1))
+
+				if prefix in volume_name:
+					self.root = self.file[entry]
+					print(volume_name)
 
 		
 	def toList(self, group):
