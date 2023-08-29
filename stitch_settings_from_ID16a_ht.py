@@ -1,5 +1,14 @@
 #!/data/id16a/inhouse1/sware/NRstitcher/pyenv/bin/python3
 
+"""
+stitch_settings_from_ID16a_ht.py:
+
+This script is dedicated to holotomographic data acquired on the beamline ID16A at the ESRF, and is used to generate a stitch settings file to be used as input to nr_stitcher.py. 
+The stitch settings file is generated based on the template default_stitch_settings.py provided with nr_stitcher, with parameters mofdified based on user-selected options.
+After adding the NRStitcher directory to the path, this script should be run from the directory where the generated stitch settings file is to be saved.
+
+"""
+
 import sys
 import argparse
 import glob
@@ -13,6 +22,12 @@ from itertools import compress
 
 from pi2py2 import *
 from default_stitch_settings import *
+
+__author__ = "Jayde Livingstone"
+__credits__ = ["Jayde Livingstone", "Arttu Miettenen"]
+__maintainer__ = "Jayde Livingstone"
+__email__ = "jayde.livingstone@gmail.com"
+
 
 argparser = argparse.ArgumentParser(description='Creates input file for nr_stitcher.py program from id16a holotomography scan settings.')
 argparser.add_argument('--base_dir', type=str, help='Required. Base directory containing sub-directories for individual scans and reconstructed volumes.')
@@ -33,6 +48,16 @@ args.distances.sort()
 
 	
 def get_h5file(volume_name):
+	"""
+	Gets the name of the h5 file associated with the experiment base directory.
+	
+	Arguments:
+	None
+	
+	Returns:
+	Name of the h5 file as a string.
+	"""
+	
 	h5path = args.base_dir + "../"
 	h5_filename = glob.glob(h5path + "*.h5")[0]
 	
@@ -96,6 +121,16 @@ class ht_vol:
 
 
 	def get_vol_info(self, infoFile):
+		"""
+		Get the information contained with the .vol.info file.
+		
+		Arguments:
+		infoFile: The name of the info file as a string.
+		
+		Returns:
+		A dictionary with the property name as the KEY and its value as the VALUE.
+		"""
+		
 		info = {}
 		with open(infoFile) as f:
 			for line in f.readlines():
@@ -109,6 +144,16 @@ class ht_vol:
 	
 	
 	def check_raw(self):
+		"""
+		Check if a processed image corresponding to selected options already exists or not.
+		
+		Arguments:
+		None
+		
+		Returns:
+		True or False
+		"""
+		
 		infoFileName = os.path.join(self.savePath, self.saveFileName) + ".info"
 		if os.path.isfile(os.path.join(self.savePath, self.saveFileName)) and os.path.isfile(infoFileName):
 			raw_info = self.get_vol_info(infoFileName)
@@ -124,11 +169,31 @@ class ht_vol:
 			
 			
 	def read_vol(self):
+		"""
+		Opens a .vol volume as a pi2 image.
+		
+		Arguments:
+		None
+		
+		Returns:
+		
+		"""
+		
 		print("Reading volume " + self.volName)
 		self.volfloat = self.pi.read(self.volName)
 		
 		
 	def create_vol(self, dtype):
+		"""
+		Create a new pi2 image of specified datatype and dimensions.
+		
+		Arguments:
+		dtype: Desired datatype.
+		
+		Returns:
+		vol: Empty pi2 image.
+		"""
+		
 		if dtype == "float32":
 			vol = self.pi.newimage(ImageDataType.FLOAT32, self.y, self.x, self.z)
 		elif dtype == "uint32":
@@ -142,6 +207,16 @@ class ht_vol:
 		
 	
 	def bit_conversion(self):
+		"""
+		Convert volume from original datatype to new datatype with specified range.
+		
+		Arguments:
+		None
+		
+		Returns:
+		
+		"""
+		
 		intbits = {"uint32" : 32, "uint16" : 16, "uint8" : 8}
 		print("Converting to " + str(intbits[self.toType]) + " bits.")
 
@@ -169,6 +244,16 @@ class ht_vol:
 		
 
 	def rescale(self):
+		"""
+		Rescale (modify the dimensions of) the volume.
+		
+		Arguments:
+		None
+		
+		Returns:
+		
+		"""
+		
 		print("Rescaling to " + str(self.rescaleTo) + " nm pixel/voxel size.")
 		tmp = self.create_vol(self.toType)
 		self.pi.scale(self.volfloat, tmp, [0,0,0], False, "Nearest")
@@ -179,8 +264,15 @@ class ht_vol:
 	
 	def reslice(self, direction):
 		"""
-		Direction = top, bottom, left or right
+		Reslice the volume.
+		
+		Arguments:
+		direction: The face in the cube which will become the first slice in the output volume. Options are Top, Bottom, Left or Right.
+		
+		Returns:
+		
 		"""
+		
 		tmp = self.pi.newlike(self.volraw)
 		pi.reslice(self.volraw, tmp, direction)
 		self.volraw = tmp.get_data()
@@ -188,20 +280,34 @@ class ht_vol:
 		self.modified = True
 				
 		
-	def write_to_raw(self):		
-		print("Writing to " + os.path.join(self.savePath, self.saveFileName))
-					
-		#new_vol = self.create_vol(self.toType)
+	def write_to_raw(self):
+		"""
+		Save the processed volume in the raw format.
 		
-		#new_vol.set_data(self.volfloat.get_data())
+		Arguments:
+		None
+		
+		Returns:
+		
+		"""
+		
+		print("Writing to " + os.path.join(self.savePath, self.saveFileName))
 		
 		self.pi.writeraw(self.volfloat, os.path.join(self.savePath, self.saveFile))			
 		self.write_raw_info()
 		
-		#del new_vol
-		
 						
 	def write_raw_info(self):
+		"""
+		Write a .raw.info file containing the parameters of the processed volume.
+		
+		Arguments:
+		None
+		
+		Returns:
+		
+		"""
+		
 		dims = self.volfloat.get_dimensions()
 		infoFile = self.savePath + self.saveFile + "_" + str(dims[0]) + "x" + str(dims[1]) + "x" +  str(dims[2]) + ".raw.info"
 		
@@ -216,6 +322,16 @@ class ht_vol:
 	
 			
 	def process_vol(self):
+		"""
+		Calls the functions required to process the volume prior to stitching.
+		
+		Arguments:
+		None
+		
+		Returns:
+		The full path to the processed volume.
+		"""
+		
 		raw_exists = self.check_raw()
 		
 		if not raw_exists:
@@ -252,11 +368,20 @@ class h5:
 			if prefix in volume_name:
 				self.root = self.file[entry]
 				print(volume_name)
-				#break
-		
-		#self.root = self.file[list(self.file.keys())[0]]
+
 		
 	def toList(self, group):
+		"""
+		Write h5 file entries to a list.
+		
+		Arguments:
+		group: Required group in h5 file
+		
+		Returns:
+		items: names of datasets
+		data: values in datasets
+		"""
+		
 		# Names
 		items = []
 		for item in group.items():
@@ -526,7 +651,6 @@ def main():
 	
 	# Write the stitch settings file and copy slurm_config file to local directory
 	write_stitch_settings(args.name, args.binning, line_to_write, point_spacing=100, coarse_block_radius=50, coarse_binning=2, cluster_name='SLURM')
-	#if args.output != None:
 	os.rename('./stitch_settings.txt', './' + args.output)
 	if not os.path.isfile('./slurm_config.txt'):
 		shutil.copyfile('/data/id16a/inhouse1/sware/NRstitcher/pi2-0523/pi2/bin-linux64/release-nocl/slurm_config_id16a.txt', './slurm_config.txt')
